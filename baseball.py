@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import random
+import re
 import uuid
 
 intro_msg = "Welcome to Baseball! (WIP)"
@@ -33,6 +34,46 @@ class gamestate:
     lineupPos_home = 1
     lineupMax_away = 0
     linupMax_home = 0
+
+def setup_lineup(gs):
+    name = input("What is the name of the away team? ")
+    #if name == "skip":
+        #print("We'll come back to that.")
+    #else:
+    gs.lineup_away.append(name)
+    done = False
+    position = 1
+    while not done:
+        displayText = "Who will be batting {} for the away team? ".format(position)
+        name = input(displayText)
+        if name == "done":
+            if position < 6:
+                print("Must have at least 6 to play.")
+            else:
+                done = True
+        else:
+            gs.lineup_away.append(name)
+            position += 1
+    
+    name = input("What is the name of the home team? ")
+    #if name == "skip":
+        #print("We'll come back to that.")
+    #else:
+    gs.lineup_home.append(name)
+    done = False
+    position = 1
+    while not done:
+        displayText = "Who will be batting {} for the home team? ".format(position)
+        name = input(displayText)
+        if name == "done":
+            if position < 6:
+                print("Must have at least 6 to play.")
+            else:
+                done = True
+        else:
+            gs.lineup_home.append(name)
+            position += 1
+    return gs
 
 def adv_inning(gs):
     if gs.inning_half == "top":
@@ -196,7 +237,7 @@ def write_gamelog(gs, action, logFile, mode):
             logLine="{} gameid={} lineup_away={} lineup_home={} actionNum={} action={}\n".format(datetime.datetime.now(), gs.gameid, gs.lineup_away, gs.lineup_home, gs.actionNum, action)
             logFile.write(logLine)
         else:
-            teamlistPath = open("games/{}.{}".format(gs.gameid + "_teamlist", mode), "w+")
+            teamlistPath = open("{}/{}.{}".format(gamesDir, gs.gameid + "_teamlist", mode), "w+")
             fieldLine="gameid,team,lineupPos,name,home\n"
             teamlistPath.write(fieldLine)
             for x in range(1,gs.lineupMax_away):
@@ -205,6 +246,7 @@ def write_gamelog(gs, action, logFile, mode):
             for y in range(1,gs.lineupMax_home):
                 logLine="{},{},{},{},true\r\n".format(gs.gameid,gs.lineup_home[0],y,gs.lineup_home[y])
                 teamlistPath.write(logLine)
+            teamlistPath.close
             gameFields="gameid,actionTime,actionNum,action,score_away,score_home,inning_half,inning,outs,strikes,defense_1b,defense_2b,defense_3b,defense_hp,defense_field,defense_dd,offense_ab,offense_1b,offense_2b,offense_3b,lineupPos_away,lineupPos_home\r\n"
             logFile.write(gameFields)
     elif action == "end":
@@ -223,7 +265,9 @@ def write_gamelog(gs, action, logFile, mode):
     return(gs)
 
 print(intro_msg)
-gamesDir = "games"
+filePath = os.path.realpath(__file__)
+filePath = re.sub('baseball.py', '', filePath)
+gamesDir = filePath + "games"
 if not os.path.exists(gamesDir):
     os.mkdir(gamesDir)
     print("Directory " , gamesDir ,  " Created ")
@@ -233,9 +277,21 @@ else:
 logMode = "csv"
 gs_current = gamestate()
 gs_current.status = "setup"
+loopin = True
+while loopin:
+    inputMode = input("What is the game mode? (input/simulation) ")
+    if inputMode in ["input","simulation"]:
+        gs_current.mode = inputMode
+        loopin = False
+    else:
+        print("Not a valid game mode.")
 
-gs_current.lineup_away = ["The Pituitary Giants","Adrienne Barbeaubot","Parts Hilton","Francis Clampazzo","Bender Rodriguez","Tinny Tim","Malfunctioning Eddie"]
-gs_current.lineup_home = ["The Anaheim Angels of Purgatory","Carmine Durango","Tequila Rizzo","Happy Braggadacio","Nicky Jackhammer","Danny Falcone","Bradley Kane"]
+if gs_current.mode == "simulation":
+    gs_current.lineup_away = ["The Pituitary Giants","Adrienne Barbeaubot","Parts Hilton","Francis Clampazzo","Bender Rodriguez","Tinny Tim","Malfunctioning Eddie"]
+    gs_current.lineup_home = ["The Anaheim Angels of Purgatory","Carmine Durango","Tequila Rizzo","Happy Braggadacio","Nicky Jackhammer","Danny Falcone","Bradley Kane"]
+else:
+    gs_current = setup_lineup(gs_current)
+
 gs_current.lineupMax_away = len(gs_current.lineup_away)
 gs_current.lineupMax_home = len(gs_current.lineup_home)
 
@@ -247,7 +303,7 @@ gs_current.defense_field = gs_current.lineup_home[5]
 gs_current.defense_dd = gs_current.lineup_home[6]
 
 gs_current.gameid = 'G' + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + hex(uuid.getnode())[-4:]
-gamePath = open("games/{}.{}".format(gs_current.gameid, logMode), "w+")
+gamePath = open("{}/{}.{}".format(gamesDir,gs_current.gameid, logMode), "w+")
 
 gs_current.status = "in progress"
 gs_current = write_gamelog(gs_current, "start", gamePath, logMode)
@@ -318,16 +374,19 @@ while gs_current.status == "in progress":
                 gs_current = adv_strike(gs_current)
                 batterCheck = False
             elif action == "steal":
-                stealCheck = True
-                while stealCheck:
-                    outcome = input("Safe or out? ")
-                    if outcome == "safe" or outcome == "out":
-                        logAction = action + outcome
-                        gs_current = write_gamelog(gs_current, logAction, gamePath, logMode)
-                        gs_current = adv_steal(gs_current, outcome)
-                        stealCheck = False
-                    else:
-                        print("Not a valid input, try again")
+                if gs_current.offense_1b or gs_current.offense_2b or gs_current.offense_3b:
+                    stealCheck = True
+                    while stealCheck:
+                        outcome = input("Safe or out? ")
+                        if outcome == "safe" or outcome == "out":
+                            logAction = action + outcome
+                            gs_current = write_gamelog(gs_current, logAction, gamePath, logMode)
+                            gs_current = adv_steal(gs_current, outcome)
+                            stealCheck = False
+                        else:
+                            print("Not a valid input, try again")
+                else:
+                    print("Impossible! No one is on base!")
             elif action == "out":
                 gs_current = write_gamelog(gs_current, "out", gamePath, logMode)
                 gs_current = adv_out(gs_current, "batter")
