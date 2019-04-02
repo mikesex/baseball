@@ -128,61 +128,41 @@ def adv_hit(gs, hit_type):
     gs.strikes = 0
     if hit_type == "single" or hit_type == "bunt_single" or hit_type == "sacrifice":
         if gs.offense_3b:
-            gs.offense_3b = None
             gs = score_run(gs)
-        if gs.offense_2b:
-            gs.offense_3b = gs.offense_2b
-            gs.offense_2b = None
-        if gs.offense_1b:
-            gs.offense_2b = gs.offense_1b
-            gs.offense_1b = None
+        gs = update_bases(gs, None, gs.offense_1b, gs.offense_2b)
         if hit_type == "sacrifice":
             gs = adv_out(gs, "batter")
         else:
             gs.offense_1b = gs.offense_ab
     elif hit_type == "long_single":
         if gs.offense_3b:
-            gs.offense_3b = None
             gs = score_run(gs)
         if gs.offense_2b:
-            gs.offense_2b = None
             gs = score_run(gs)
-        if gs.offense_1b:
-            gs.offense_2b = gs.offense_1b
-        gs.offense_1b = gs.offense_ab
+        gs = update_bases(gs, gs.offense_ab, gs.offense_1b, None)
     elif hit_type == "double":
         if gs.offense_3b:
-            gs.offense_3b = None
             gs = score_run(gs)
         if gs.offense_2b:
-            gs.offense_2b = None
             gs = score_run(gs)
-        if gs.offense_1b:
-            gs.offense_3b = gs.offense_1b
-            gs.offense_1b = None
-        gs.offense_2b = gs.offense_ab
+        gs = update_bases(gs, None, gs.offense_ab, gs.offense_1b)
     elif hit_type == "triple":
         if gs.offense_3b:
-            gs.offense_3b = None
             gs = score_run(gs)
         if gs.offense_2b:
-            gs.offense_2b = None
             gs = score_run(gs)
         if gs.offense_1b:
-            gs.offense_1b = None
             gs = score_run(gs)
-        gs.offense_3b = gs.offense_ab
+        gs = update_bases(gs, None, None, gs.offense_ab)
     elif hit_type == "homerun":
         if gs.offense_3b:
-            gs.offense_3b = None
             gs = score_run(gs)
         if gs.offense_2b:
-            gs.offense_2b = None
             gs = score_run(gs)
         if gs.offense_1b:
-            gs.offense_1b = None
             gs = score_run(gs)
         gs = score_run(gs)
+        gs = update_bases(gs, None, None, None)
     gs = adv_batter(gs)
     return gs
 
@@ -212,16 +192,21 @@ def adv_steal(gs, sbDef):
             gs = adv_out(gs, "runner")
             gs.offense_2b = None
         else:
-            gs.offense_3b = gs.offense_2b
-            gs.offense_2b = None
+            gs = update_bases(gs, gs.offense_1b, None, gs.offense_2b)
     elif gs.offense_1b:
         if sbDef == "out":
             gs = adv_out(gs, "runner")
             gs.offense_1b = None
         else:
-            gs.offense_2b = gs.offense_1b
-            gs.offense_1b = None
+            gs = update_bases(gs, None, gs.offense_1b, gs.offense_3b)
     return(gs)
+
+def check_gamestate(gs):
+    scoreline = "It is the {} of {}. The score is {} - {}.\n".format(gs.inning_half, gs.inning, gs.score_away, gs.score_home)
+    batter_summary = "There is/are {} out(s) and {} strike(s) with {} up to bat.\n".format(gs.outs, gs.strikes, gs.offense_ab)
+    runners = "{} on first. {} on second. {} on third.\n".format(gs.offense_1b, gs.offense_2b, gs.offense_3b)
+    defenders = "Covering first is {}, with {} at second, {} watching third, and {} at homeplate. {} is fielding and {} is drinking.".format(gs.defense_1b, gs.defense_2b, gs.defense_3b, gs.defense_hp, gs.defense_field, gs.defense_dd)
+    print(scoreline + batter_summary + runners + defenders)
 
 def score_run(gs):
     if gs.inning_half == "top":
@@ -231,7 +216,61 @@ def score_run(gs):
     print("He Scores!")
     return gs
 
+def undo(gs, logFile):
+    f = open(logFile,"r")
+    lines = f.readlines()
+    last_line = lines[-1]
+    f.close()
+
+    gs_values = last_line.split(',')
+    gs.actionNum = int(gs_values[2])
+    gs.score_away = int(gs_values[4])
+    gs.score_home = int(gs_values[5])
+    gs.inning_half = gs_values[6]
+    gs.inning = int(gs_values[7])
+    gs.outs = int(gs_values[8])
+    #gs.strikes = int(gs_values[9])
+    gs = update_defense(gs,gs_values[10],gs_values[11],gs_values[12],gs_values[13],gs_values[14],gs_values[15])
+    gs.offense_ab = gs_values[16]
+    gs = update_bases(gs,gs_values[17],gs_values[18],gs_values[19])
+    gs.lineupPos_away = int(gs_values[20])
+    gs.lineupPos_home = int(gs_values[21])
+    
+    lines = lines[:-1]
+    raw = ""
+    for row in lines:
+        raw += row
+    f = open(logFile,"w")
+    f.write(raw)
+    f.close()
+    return gs
+
+def update_bases(gs,b1,b2,b3):
+    if b1 == "None":
+        gs.offense_1b = None
+    else:
+        gs.offense_1b = b1
+    if b2 == "None":
+        gs.offense_2b = None
+    else:
+        gs.offense_2b = b2
+    if b3 == "None":
+        gs.offense_3b = None
+    else:
+        gs.offense_3b = b3
+    return gs
+
+def update_defense(gs,b1,b2,b3,hp,f,dd):
+    gs.defense_1b = b1
+    gs.defense_2b = b2
+    gs.defense_3b = b3
+    gs.defense_hp = hp
+    gs.defense_field = f
+    gs.defense_dd = dd
+    return gs
+
 def write_gamelog(gs, action, logFile, mode):
+    logFile = open(logFile,"a")
     if action == "start":
         if mode=="log":
             logLine="{} gameid={} lineup_away={} lineup_home={} actionNum={} action={}\n".format(datetime.datetime.now(), gs.gameid, gs.lineup_away, gs.lineup_home, gs.actionNum, action)
@@ -259,7 +298,7 @@ def write_gamelog(gs, action, logFile, mode):
         else:
             logLine = "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\r\n".format(gs.gameid, datetime.datetime.now(), gs.actionNum, action, gs.score_away, gs.score_home, gs.inning_half, gs.inning, gs.outs, gs.strikes, gs.defense_1b, gs.defense_2b, gs.defense_3b, gs.defense_hp, gs.defense_field, gs.defense_dd, gs.offense_ab, gs.offense_1b, gs.offense_2b, gs.offense_3b, gs.lineupPos_away, gs.lineupPos_home)
         logFile.write(logLine)
-
+    logFile.close
     
     gs.actionNum += 1
     return(gs)
@@ -286,11 +325,11 @@ while loopin:
     else:
         print("Not a valid game mode.")
 
-if gs_current.mode == "simulation":
+#if gs_current.mode == "simulation":
     gs_current.lineup_away = ["The Pituitary Giants","Adrienne Barbeaubot","Parts Hilton","Francis Clampazzo","Bender Rodriguez","Tinny Tim","Malfunctioning Eddie"]
     gs_current.lineup_home = ["The Anaheim Angels of Purgatory","Carmine Durango","Tequila Rizzo","Happy Braggadacio","Nicky Jackhammer","Danny Falcone","Bradley Kane"]
-else:
-    gs_current = setup_lineup(gs_current)
+#else:
+#    gs_current = setup_lineup(gs_current)
 
 gs_current.lineupMax_away = len(gs_current.lineup_away)
 gs_current.lineupMax_home = len(gs_current.lineup_home)
@@ -303,7 +342,8 @@ gs_current.defense_field = gs_current.lineup_home[5]
 gs_current.defense_dd = gs_current.lineup_home[6]
 
 gs_current.gameid = 'G' + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + hex(uuid.getnode())[-4:]
-gamePath = open("{}/{}.{}".format(gamesDir,gs_current.gameid, logMode), "w+")
+#gamePath = open("{}/{}.{}".format(gamesDir,gs_current.gameid, logMode), "w+")
+gamePath = "{}/{}.{}".format(gamesDir,gs_current.gameid, logMode)
 
 gs_current.status = "in progress"
 gs_current = write_gamelog(gs_current, "start", gamePath, logMode)
@@ -395,11 +435,16 @@ while gs_current.status == "in progress":
                 gs_current = write_gamelog(gs_current, action, gamePath, logMode)
                 gs_current = adv_hit(gs_current, action)
                 batterCheck = False
+            elif action == "status":
+                check_gamestate(gs_current)
+            elif action == "undo":
+                gs_current = undo(gs_current, gamePath)
+                game_summary = "{} of {}. {} outs. {} - {}. {} strikes. {} up to bat.".format(gs_current.inning_half,gs_current.inning,gs_current.outs,gs_current.score_away,gs_current.score_home,gs_current.strikes,gs_current.offense_ab)
+                print(game_summary)
                     
     if gs_current.inning > 8 and gs_current.inning_half == "bottom" and gs_current.score_home > gs_current.score_away:
         gs_current.status = "ended"
 gs_current = write_gamelog(gs_current, "end", gamePath, logMode)
 
-gamePath.close()
 print("Final Score: {}, {}. {}, {}.".format(gs_current.lineup_away[0],gs_current.score_away,gs_current.lineup_home[0],gs_current.score_home,))
 print("Game Over")
