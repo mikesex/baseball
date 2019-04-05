@@ -36,43 +36,59 @@ class gamestate:
     linupMax_home = 0
 
 def setup_lineup(gs):
-    name = input("What is the name of the away team? ")
-    #if name == "skip":
-        #print("We'll come back to that.")
-    #else:
-    gs.lineup_away.append(name)
-    done = False
-    position = 1
-    while not done:
-        displayText = "Who will be batting {} for the away team? ".format(position)
-        name = input(displayText)
-        if name == "done":
-            if position < 6:
-                print("Must have at least 6 to play.")
+    if gs.mode == "simulation":
+        team1 = ["The Pituitary Giants","Adrienne Barbeaubot","Parts Hilton","Francis Clampazzo","Bender Rodriguez","Tinny Tim","Malfunctioning Eddie"]
+        team2 = ["The Anaheim Angels of Purgatory","Carmine Durango","Tequila Rizzo","Happy Braggadacio","Nicky Jackhammer","Danny Falcone","Bradley Kane"]
+        team3 = ["Rancho Cucamonga Moonshiners","Studley Duke","Bear West","Shelby Montana","Henry Clementine","Loretta Bull","Bessie Birmingham"]
+        team4 = ["The Mermaid's Plunderers","Clarissa  Morgan","Phillipe Clarke","Nicole Ivanov","Dabloon Ward","Sky Bravebeard","Scurvy Peterson"]
+        team5 = ["Sunshine THANK YOU!!!","Matsubara Hiroshi","Imada Basho","Tashiro Yukiko","No Rio","Domoto Sanzo","Yoshii Wakano"]
+        team6 = ["The Plain and Simples","John Smith","Jane Anderson","Nick Jackson","Mike Johnson","Jack Michaels","Andy Nicholson"]
+        sim_teams = [team1, team2, team3, team4, team5, team6]
+        maxRange = (len(sim_teams) - 1)
+        rollAway = random.randint(0, maxRange)
+        gs.lineup_away = sim_teams[rollAway]
+        rollHome = rollAway
+        while rollHome == rollAway:
+            rollHome = random.randint(0,4)
+        gs.lineup_home = sim_teams[rollHome]
+    else:
+        name = input("What is the name of the away team? ")
+        #if name == "skip":
+            #print("We'll come back to that.")
+        #else:
+        gs.lineup_away.append(name)
+        done = False
+        position = 1
+        while not done:
+            displayText = "Who will be batting {} for the away team? ".format(position)
+            name = input(displayText)
+            if name == "done":
+                if position < 6:
+                    print("Must have at least 6 to play.")
+                else:
+                    done = True
             else:
-                done = True
-        else:
-            gs.lineup_away.append(name)
-            position += 1
+                gs.lineup_away.append(name)
+                position += 1
     
-    name = input("What is the name of the home team? ")
-    #if name == "skip":
-        #print("We'll come back to that.")
-    #else:
-    gs.lineup_home.append(name)
-    done = False
-    position = 1
-    while not done:
-        displayText = "Who will be batting {} for the home team? ".format(position)
-        name = input(displayText)
-        if name == "done":
-            if position < 6:
-                print("Must have at least 6 to play.")
+        name = input("What is the name of the home team? ")
+        #if name == "skip":
+            #print("We'll come back to that.")
+        #else:
+        gs.lineup_home.append(name)
+        done = False
+        position = 1
+        while not done:
+            displayText = "Who will be batting {} for the home team? ".format(position)
+            name = input(displayText)
+            if name == "done":
+                if position < 6:
+                    print("Must have at least 6 to play.")
+                else:
+                    done = True
             else:
-                done = True
-        else:
-            gs.lineup_home.append(name)
-            position += 1
+                gs.lineup_home.append(name)
+                position += 1
     return gs
 
 def adv_inning(gs):
@@ -280,13 +296,14 @@ def write_gamelog(gs, action, logFile, mode):
             fieldLine="gameid,team,lineupPos,name,home\n"
             teamlistPath.write(fieldLine)
             for x in range(1,gs.lineupMax_away):
-                logLine="{},{},{},{},false\r\n".format(gs.gameid,gs.lineup_away[0],x,gs.lineup_away[x])
+                logLine="{},{},{},{},false\n".format(gs.gameid,gs.lineup_away[0],x,gs.lineup_away[x])
                 teamlistPath.write(logLine)
             for y in range(1,gs.lineupMax_home):
-                logLine="{},{},{},{},true\r\n".format(gs.gameid,gs.lineup_home[0],y,gs.lineup_home[y])
+                logLine="{},{},{},{},true\n".format(gs.gameid,gs.lineup_home[0],y,gs.lineup_home[y])
                 teamlistPath.write(logLine)
             teamlistPath.close
-            gameFields="gameid,actionTime,actionNum,action,score_away,score_home,inning_half,inning,outs,strikes,defense_1b,defense_2b,defense_3b,defense_hp,defense_field,defense_dd,offense_ab,offense_1b,offense_2b,offense_3b,lineupPos_away,lineupPos_home\r\n"
+            gameFields="gameid,actionTime,actionNum,action,score_away,score_home,inning_half,inning,outs,strikes,defense_1b,defense_2b,defense_3b,defense_hp,defense_field,defense_dd,offense_ab,offense_1b,offense_2b,offense_3b,lineupPos_away,lineupPos_home"
+            gameFields = extract_stats(gs, gameFields, action)
             logFile.write(gameFields)
     elif action == "end":
         if mode=="log":
@@ -296,12 +313,65 @@ def write_gamelog(gs, action, logFile, mode):
         if mode=="log":
             logLine = "{} gameid={} actionNum={} action={} score_away={} score_home={} inning_half={} inning={} outs={} strikes={} defense_1b=\"{}\" defense_2b=\"{}\" defense_3b=\"{}\" defense_hp=\"{}\" defense_field=\"{}\" defense_dd=\"{}\" offense_ab=\"{}\" offense_1b=\"{}\" offense_2b=\"{}\" offense_3b=\"{}\" lineupPos_away={} lineupPos_home={}\r\n".format(datetime.datetime.now(), gs.gameid, gs.actionNum, action, gs.score_away, gs.score_home, gs.inning_half, gs.inning, gs.outs, gs.strikes, gs.defense_1b, gs.defense_2b, gs.defense_3b, gs.defense_hp, gs.defense_field, gs.defense_dd, gs.offense_ab, gs.offense_1b, gs.offense_2b, gs.offense_3b, gs.lineupPos_away, gs.lineupPos_home)
         else:
-            logLine = "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\r\n".format(gs.gameid, datetime.datetime.now(), gs.actionNum, action, gs.score_away, gs.score_home, gs.inning_half, gs.inning, gs.outs, gs.strikes, gs.defense_1b, gs.defense_2b, gs.defense_3b, gs.defense_hp, gs.defense_field, gs.defense_dd, gs.offense_ab, gs.offense_1b, gs.offense_2b, gs.offense_3b, gs.lineupPos_away, gs.lineupPos_home)
+            logLine = "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}".format(gs.gameid, datetime.datetime.now(), gs.actionNum, action, gs.score_away, gs.score_home, gs.inning_half, gs.inning, gs.outs, gs.strikes, gs.defense_1b, gs.defense_2b, gs.defense_3b, gs.defense_hp, gs.defense_field, gs.defense_dd, gs.offense_ab, gs.offense_1b, gs.offense_2b, gs.offense_3b, gs.lineupPos_away, gs.lineupPos_home)
+        logLine = extract_stats(gs, logLine, action)
         logFile.write(logLine)
     logFile.close
     
     gs.actionNum += 1
     return(gs)
+
+def extract_stats(gs, event, action):
+    if gs.actionNum == 0:
+        event += ",scored_on_play_1b,scored_on_play_2b,scored_on_play_3b,rbi,sb,def_fail,sb_fail,def\n"
+    else:
+        rbi = 0
+        ob1 = ""
+        ob2 = ""
+        ob3 = ""
+        if gs.offense_1b and action in ["triple","homerun"]:
+            ob1 = gs.offense_1b
+            rbi += 1
+        if gs.offense_2b and action in ["long_single","double","triple","homerun"]:
+            ob2 = gs.offense_2b
+            rbi += 1
+        if gs.offense_3b and action not in ["out","strikeout","stealout","strike"]:
+            ob3 = gs.offense_3b
+            rbi += 1
+        if action == "homerun":
+            rbi += 1
+
+        sb = ""
+        def_fail = ""
+        if action == "bunt_single":
+            def_fail = gs.defense_1b
+        elif action == "stealsafe":
+            if gs.offense_3b:
+                sb = gs.offense_3b
+                def_fail = gs.defense_hp
+            elif gs.offense_2b:
+                sb = gs.offense_2b
+                def_fail = gs.defense_3b
+            elif gs.offense_1b:
+                sb = gs.offense_1b
+                def_fail = gs.defense_2b
+        sb_fail = ""
+        defs = ""
+        if action == "sacrifice":
+            defs = gs.defense_1b
+        elif action == "stealout":
+            if gs.offense_3b:
+                sb_fail = gs.offense_3b
+                defs = gs.defense_hp
+            elif gs.offense_2b:
+                sb_fail = gs.offense_2b
+                defs = gs.defense_3b
+            elif gs.offense_1b:
+                sb_fail = gs.offense_1b
+                defs = gs.defense_2b
+        event += ",{},{},{},{},{},{},{},{}\n".format(ob1,ob2,ob3,rbi,sb,def_fail,sb_fail,defs)
+    return event
+    
 
 print(intro_msg)
 filePath = os.path.realpath(__file__)
@@ -325,12 +395,7 @@ while loopin:
     else:
         print("Not a valid game mode.")
 
-#if gs_current.mode == "simulation":
-    gs_current.lineup_away = ["The Pituitary Giants","Adrienne Barbeaubot","Parts Hilton","Francis Clampazzo","Bender Rodriguez","Tinny Tim","Malfunctioning Eddie"]
-    gs_current.lineup_home = ["The Anaheim Angels of Purgatory","Carmine Durango","Tequila Rizzo","Happy Braggadacio","Nicky Jackhammer","Danny Falcone","Bradley Kane"]
-#else:
-#    gs_current = setup_lineup(gs_current)
-
+gs_current = setup_lineup(gs_current)
 gs_current.lineupMax_away = len(gs_current.lineup_away)
 gs_current.lineupMax_home = len(gs_current.lineup_home)
 
